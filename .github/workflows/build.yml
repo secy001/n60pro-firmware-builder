@@ -106,9 +106,17 @@ jobs:
       - name: 应用配置
         working-directory: source
         run: |
+          # feeds install -a 会重写 .config 并丢失第三方源包选择，
+          # 必须在 defconfig 前重新追加插件配置（已通过诊断验证）
+          cat "$GITHUB_WORKSPACE/builder-config/packages.config" >> .config
           make defconfig
           echo "===== 关键配置确认 ====="
           grep -E '^(CONFIG_TARGET_DEVICE_mediatek_filogic_DEVICE_netcore_n60-pro|CONFIG_MTK_FIRST_IF_IPAILNA|CONFIG_MTK_MT_WIFI_MT7986_20260601|CONFIG_PACKAGE_kmod-mt_wifi|CONFIG_PACKAGE_cups|CONFIG_PACKAGE_luci-app-openclash|CONFIG_PACKAGE_luci-app-store)=' .config || true
+          echo "===== 插件完整性校验（缺失则终止）====="
+          for p in cups libcups luci-app-openclash luci-app-store luci-lib-taskd ruby unzip; do
+            grep -q "^CONFIG_PACKAGE_${p}=y" .config || { echo "错误：插件 $p 未生效，终止编译"; exit 1; }
+            echo "  OK: $p"
+          done
 
       - name: 预下载源码与软件包
         working-directory: source
