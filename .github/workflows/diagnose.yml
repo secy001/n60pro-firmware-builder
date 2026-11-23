@@ -47,7 +47,15 @@ jobs:
       - name: 应用 defconfig 并诊断
         working-directory: source
         run: |
-          make defconfig >/dev/null 2>&1
+          echo "===== defconfig 前：输入 .config 中的插件行 ====="
+          grep -E '^CONFIG_PACKAGE_(cups|libcups|luci-app-openclash|luci-app-store|ruby|ruby-yaml|unzip|luci-lib-taskd)=' .config
+          echo "===== Kconfig 符号是否存在 ====="
+          for k in cups libcups luci-app-openclash luci-app-store ruby ruby-yaml unzip luci-lib-taskd; do
+            n=$(grep -rl "config PACKAGE_${k}$" package/feeds/*/ 2>/dev/null | head -1)
+            echo "  $k -> ${n:-未找到Kconfig符号}"
+          done
+          echo "===== 执行 make defconfig（完整输出）====="
+          make defconfig 2>&1 | tail -40
           echo "===== 插件配置在 defconfig 后的状态 ====="
           for k in cups cups-filters cups-client cups-ppdc libcups libcupsimage \
                    luci-app-openclash luci-app-store dnsmasq-full \
