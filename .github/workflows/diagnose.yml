@@ -1,0 +1,66 @@
+# 快速诊断工作流：只跑 feeds + defconfig，验证插件配置是否被 Kconfig 保留
+# 不编译，2-5 分钟出结果，用于快速迭代 .config / diy.sh
+name: Diagnose Config (no build)
+
+on:
+  workflow_dispatch:
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: 检出配置
+        uses: actions/checkout@v4
+        with:
+          path: builder-config
+
+      - name: 安装依赖
+        run: |
+          sudo apt-get update -y
+          sudo apt-get install -y --no-install-recommends \
+            build-essential bison flex python3 python3-ply git curl wget \
+            libncurses-dev gawk gettext unzip file libssl-dev rsync \
+            device-tree-compiler fastjar gperf help2man intltool
+          sudo apt-get clean
+
+      - name: Clone 源码并注入配置
+        run: |
+          git clone -b openwrt-24.10-6.6 --single-branch --depth 1 \
+            https://github.com/Yuzhii0718/immortalwrt-mt798x-6.6-padavanonly.git source
+          cd source
+          cp -f "$GITHUB_WORKSPACE/builder-config/.config" .config
+          cp -f "$GITHUB_WORKSPACE/builder-config/diy.sh" diy.sh
+          cp -r "$GITHUB_WORKSPACE/builder-config/files" files
+          chmod +x diy.sh
+          ./diy.sh
+
+      - name: 更新 feeds
+        working-directory: source
+        run: |
+          ./scripts/feeds update -a
+          ./scripts/feeds install -a
+          rm -f package/feeds/luci/luci-app-openclash
+          ./scripts/feeds install -f -p openclash luci-app-openclash
+          ./scripts/feeds install -f -p istore luci-app-store
+
+      - name: 应用 defconfig 并诊断
+        working-directory: source
+        run: |
+          make defconfig >/dev/null 2>&1
+          echo "===== 插件配置在 defconfig 后的状态 ====="
+          for k in cups cups-filters cups-client cups-ppdc libcups libcupsimage \
+                   luci-app-openclash luci-app-store dnsmasq-full \
+                   luci-lib-taskd libuci-lua ruby ruby-yaml kmod-tun unzip; do
+            if grep -q "^CONFIG_PACKAGE_${k}=y" .config; then
+              echo "  [OK] $k"
+            else
+              echo "  [缺失] $k"
+            fi
+          done
+          echo "===== 目标与驱动 ====="
+          grep -E '^(CONFIG_TARGET_DEVICE_mediatek_filogic_DEVICE_netcore_n60-pro|CONFIG_MTK_FIRST_IF_IPAILNA|CONFIG_MTK_MT_WIFI_MT7986_20260601|CONFIG_PACKAGE_kmod-mt_wifi)=' .config
+          echo "===== 包符号是否存在于 feeds ====="
+          for p in cups libcups luci-app-openclash luci-app-store; do
+            echo "-- $p --"; ls -d package/feeds/*/$p 2>/dev/null || echo "  (无软链)"
+          done

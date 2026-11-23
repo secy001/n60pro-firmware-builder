@@ -11,12 +11,11 @@ cd "$(dirname "$0")"
 
 # ---------------------------------------------------------------------------
 # 1) 追加第三方 feeds
-#    注意：printing 源必须放在 feeds.conf.default 顶部，
-#    这样它的 CUPS 2.4.12 才会覆盖 immortalwrt/packages 里的 2.3.3。
+#    CUPS 说明：第三方 printing 源(2.4.12)的 cups/Makefile 只 eval 注册了
+#    cups 本体，libcups/libcupsimage/cups-filters 等虽有 define 但未注册，
+#    导致依赖解析失败、cups 被 defconfig 删除。因此改用官方 packages 源的
+#    cups 2.3.3（正确注册全部子包，稳定可用）。
 # ---------------------------------------------------------------------------
-if ! grep -q 'src-git printing ' feeds.conf.default 2>/dev/null; then
-    sed -i '1i src-git printing https://gitee.com/master0123/openwrt-printing-packages.git;master' feeds.conf.default
-fi
 if ! grep -q 'src-git openclash ' feeds.conf.default; then
     echo 'src-git openclash https://github.com/vernesong/OpenClash.git;master' >> feeds.conf.default
 fi

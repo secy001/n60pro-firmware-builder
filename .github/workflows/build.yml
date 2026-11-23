@@ -96,6 +96,12 @@ jobs:
         run: |
           ./scripts/feeds update -a
           ./scripts/feeds install -a
+          # luci 源自带同名 luci-app-openclash，会抢占软链导致 openclash 源包被忽略
+          rm -f package/feeds/luci/luci-app-openclash
+          ./scripts/feeds install -f -p openclash luci-app-openclash
+          ./scripts/feeds install -f -p istore luci-app-store
+          echo "===== 插件软链确认 ====="
+          ls -d package/feeds/*/luci-app-openclash package/feeds/*/luci-app-store package/feeds/*/cups 2>/dev/null || true
 
       - name: 应用配置
         working-directory: source
