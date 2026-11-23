@@ -51,12 +51,12 @@ jobs:
       - name: 应用 defconfig 并诊断
         working-directory: source
         run: |
-          echo "===== defconfig 前：输入 .config 中的插件行 ====="
-          grep -E '^CONFIG_PACKAGE_(cups|libcups|luci-app-openclash|luci-app-store|ruby|ruby-yaml|unzip|luci-lib-taskd)=' .config || echo "(无匹配!)"
-          echo "===== .config 总行数 ====="
-          wc -l .config
-          echo "===== 执行 make defconfig（完整输出）====="
-          make defconfig 2>&1 | tail -30 || true
+          echo "===== 测试：feeds install 后重新追加 packages.config 再 defconfig ====="
+          cat "$GITHUB_WORKSPACE/builder-config/packages.config" >> .config
+          echo "追加后插件行:"
+          grep -E '^CONFIG_PACKAGE_(cups|luci-app-openclash|luci-app-store)=' .config || echo "(无匹配!)"
+          echo "===== 执行 make defconfig ====="
+          make defconfig 2>&1 | tail -20 || true
           echo "===== 插件配置在 defconfig 后的状态 ====="
           for k in cups cups-filters cups-client cups-ppdc libcups libcupsimage \
                    luci-app-openclash luci-app-store dnsmasq-full \
