@@ -1,0 +1,24 @@
+#!/bin/sh
+# =============================================================================
+# 首次启动配置：将 WiFi 发射功率设为高功率档
+# 固件已编译 iPAiLNA 前端（外置 PA+LNA），此处设置软件侧功率目标值。
+#
+# 【重要风险与合规提示】
+#  24dBm ≈ 250mW。中国 SRRC 规定 2.4GHz 频段 EIRP 上限为 20dBm(100mW)，
+#  5GHz 部分信道允许更高功率。超出法规限值属于违规，且长期满功率运行
+#  可能加速功放老化 / 过热。请根据所在地区法规与自身硬件耐受自行决定。
+#  如不需要，删除本文件或将 TXPOWER 改为合规值（如 20）后重新编译。
+# =============================================================================
+TXPOWER="24"
+
+[ -f /etc/config/wireless ] || exit 0
+
+# 遍历所有 wifi-iface 设置发射功率
+for section in $(uci show wireless 2>/dev/null | grep '=wifi-iface' | cut -d. -f2 | cut -d= -f1); do
+    uci set "wireless.${section}.txpower=${TXPOWER}" 2>/dev/null || true
+done
+uci commit wireless 2>/dev/null || true
+
+# 标记仅执行一次
+rm -f /etc/uci-defaults/99-n60-highpower 2>/dev/null || true
+exit 0
